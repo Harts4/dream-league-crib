@@ -44,6 +44,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .sc,.si{flex:0 0 auto;box-sizing:border-box;min-width:30px;height:26px;border:1px solid var(--line);border-radius:5px;text-align:center;font-weight:700;font-size:14px;line-height:24px;padding:0 4px;background:var(--bg);color:var(--ink)}.si{width:34px;padding:0;-moz-appearance:textfield;border-color:var(--hi)}.sc sup{font-size:10px;margin-left:1px}
 .bf{display:flex;align-items:center;gap:4px;margin-top:3px}.pe{display:flex;gap:3px}.pe[hidden]{display:none}.bf .b{margin:0 0 0 auto;padding:2px 8px;font-size:12px;min-height:26px}.bf .b.x{padding:0;min-width:24px;margin-left:0}.pe .si{width:28px}.st{font-size:12px;color:var(--mute)}.edt{border:1px solid var(--hi);border-radius:10px;padding:10px 12px;margin-top:10px}.rep{border-top:1px solid var(--line);padding:8px 0}.rep .b.sm{margin:6px 8px 0 0}
 .post{border-left:6px solid var(--hi)}.post h3{margin:6px 0 2px}.post .body{white-space:pre-wrap}.cm{border-top:1px solid var(--line);margin-top:12px;padding-top:8px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--hi);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-3px;margin-right:8px}@keyframes sp{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spin{animation-duration:2.5s}}
 .cbar{margin-top:10px}.crow{display:flex;gap:8px;align-items:flex-end}.ci{flex:1;min-width:0;min-height:40px;max-height:110px;resize:none;border-radius:20px;padding:9px 14px;line-height:20px;font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--ink);box-sizing:border-box}.sendb{flex:0 0 auto;border-radius:20px;min-height:40px;padding:0 18px;margin:0}
 .rp{display:flex;align-items:center;gap:8px;border-left:4px solid var(--hi);background:var(--bg);border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:13px}.rp[hidden]{display:none}.rp .t{flex:1;min-width:0}.rp .t div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rp button{border:0;background:none;color:var(--ink);font-size:16px;min-width:32px;min-height:32px}
 .c{position:relative;touch-action:pan-y}.c .swi{position:absolute;left:-32px;top:50%;margin-top:-12px;width:24px;height:24px;line-height:24px;text-align:center;border-radius:50%;background:var(--hi);color:var(--hion);opacity:var(--sw,0);pointer-events:none}.c.hl{background:var(--line)}
@@ -85,7 +86,8 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <script>
 const $=s=>document.querySelector(s);
 const h=(t,a,...k)=>{const e=document.createElement(t);for(const x in a||{}){const v=a[x];x.startsWith('on')?e[x]=v:e.setAttribute(x,v)}for(const c of k.flat())if(c!=null&&c!==false)e.append(c);return e};
-let db,uid=null,ownerUid=null,ownerLoaded=false,isOwn=false,priv=false,profiles=[],tours=[],filled=false;
+const ld=()=>h('p',{class:'mute',role:'status'},h('span',{class:'spin','aria-hidden':'true'}),'Loading...');
+let authReady=false,postsL=false,toursL=false,annsL=false,profL=false,matchL=false,db,uid=null,ownerUid=null,ownerLoaded=false,isOwn=false,priv=false,profiles=[],tours=[],filled=false;
 const tref=id=>db.doc('tournaments/'+id);
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,3500)}
 async function act(fn){if(!db)return;if(!uid)return toast('Sign in with Google first.');try{await fn()}catch(e){toast(e&&e.code==='permission-denied'?'That is not allowed for your account.':'Could not save. Try again.')}}
@@ -182,16 +184,17 @@ function fill(){if(filled)return;const p=profiles.find(x=>x.id===uid);if(!p)retu
  $('#pn').value=p.name||'';$('#pt').value=p.team||'';$('#pr').value=p.rating||'';$('#pc').value=p.country||'';$('#pa').value=p.about||'';$('#pw').value=p.wa||''}
 const pex=new Set();
 function rp(){const q=$('#q').value.toLowerCase(),l=$('#plist');l.replaceChildren();
+ if(!authReady){l.append(ld());return}
  if(!uid){l.append(h('p',{class:'mute'},'Sign in with Google to see the players.'));return}
  const f=profiles.filter(p=>[p.name,p.team,p.country].join(' ').toLowerCase().includes(q)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
- if(!f.length){l.append(h('p',{class:'mute'},profiles.length?'No players match your search.':'No players yet. Open My profile to be the first.'));return}
+ if(!f.length){l.append(!profL?ld():h('p',{class:'mute'},profiles.length?'No players match your search.':'No players yet. Open My profile to be the first.'));return}
  l.append(h('p',{class:'mute'},f.length+(f.length===1?' player':' players')));
  f.forEach(p=>{const o=pex.has(p.id);
   const card=h('div',{class:'card',style:'padding:0'},h('button',{class:'b ghost',style:'width:100%;margin:0;display:flex;justify-content:space-between;align-items:center;border:0;padding:14px;font-size:17px;text-align:left','aria-expanded':String(o),onclick:()=>{o?pex.delete(p.id):pex.add(p.id);rp()}},h('span',{},String(p.name),p.id===uid?h('span',{class:'chip'},'You'):null),h('span',{class:'mute','aria-hidden':'true'},o?'\u2212':'+')));
   if(o)card.append(h('div',{style:'padding:0 14px 14px'},h('div',{class:'mute'},[p.team,p.country,p.rating?'Rating '+p.rating:''].filter(Boolean).join(', ')||'No details yet.'),p.about?h('p',{},String(p.about)):null,p.id!==uid&&p.wa?h('a',{class:'b ghost wa',href:'https://wa.me/'+String(p.wa).replace(/\D/g,''),target:'_blank',rel:'noopener'},'WhatsApp'):null,p.id!==uid?h('button',{class:'b',onclick:()=>challenge(p)},'Challenge to a match'):null));
   l.append(card)})}
 function rt(){const l=$('#tlist'),fa=document.activeElement;const pn=isOwn?tours.reduce((a,t)=>a+pending(t).length,0):0,tb=document.querySelector('.tab[data-t="tours"]');if(tb)tb.textContent='Cups'+(pn?' ('+pn+')':'');if(l.contains(fa)&&fa.tagName==='INPUT')return;l.replaceChildren();
- if(!tours.length)l.append(h('p',{class:'mute'},'No tournaments yet. Create one above.'));
+ if(!tours.length)l.append(toursL?h('p',{class:'mute'},'No tournaments yet. Create one above.'):ld());
  tours.forEach(t=>{t.players=t.players||[];const mine=t.players.some(p=>p.id===uid),own=t.owner===uid;
   const c=h('div',{class:'card'},h('h3',{},String(t.name),h('span',{class:'chip'},t.status==='open'?'Open':t.status==='live'?'Live':'Finished')),
    h('div',{class:'mute'},t.players.length+' of '+t.size+' players: '+t.players.map(p=>p.name).join(', ')));
@@ -267,7 +270,7 @@ function buildBar(p){const w=h('div',{class:'cbar'}),rp=h('div',{class:'rp','dat
 function openC(p){if(open.has(p.id)){open.delete(p.id)}else{open.add(p.id);if(!subs.has(p.id)){subs.add(p.id);
  db.collection('posts/'+p.id+'/comments').orderBy('created').onSnapshot(s=>{cc[p.id]=s.docs.map(d=>({id:d.id,...d.data()}));const el=document.querySelector('[data-cl="'+p.id+'"]');if(el)fillC(p,el);else rh()},()=>toast('Could not load comments.'))}}rh()}
 function rh(){const l=$('#hlist'),a=document.activeElement;if(l.contains(a)&&/INPUT|TEXTAREA/.test(a.tagName))return;l.replaceChildren();
- if(!posts.length)l.append(h('p',{class:'mute'},'No posts yet. Winners, results and player updates will appear here.'));
+ if(!posts.length)l.append(postsL?h('p',{class:'mute'},'No posts yet. Winners, results and player updates will appear here.'):ld());
  posts.forEach(p=>{const c=h('div',{class:'card post'},h('span',{class:'chip',style:'margin-left:0'},String(p.cat||'News')),p.title?h('h3',{},String(p.title)):null,p.body?h('div',{class:'body'},String(p.body)):null,p.img&&String(p.img).startsWith('data:image/')?h('img',{src:p.img,alt:p.title||'Post picture',style:'display:block;width:100%;height:auto;border-radius:10px;margin-top:10px'}):null,h('div',{class:'mute'},new Date(p.created).toLocaleString()));
   c.append(rr(p));
   if(p.comments!==false){const n=(cc[p.id]||[]).length,isO=open.has(p.id);
@@ -283,9 +286,10 @@ const challenge=p=>act(async()=>{const me=myName();if(!me)return toast('Create y
 const setm=(m,d)=>act(()=>mref(m.id).update(d));
 const mineM=()=>matches.filter(m=>m.from&&m.to&&(m.from.id===uid||m.to.id===uid));
 function rm(){const l=$('#mlist');if(l.contains(document.activeElement)&&document.activeElement.tagName==='INPUT')return;l.replaceChildren();
+ if(!authReady){l.append(ld());return}
  if(!uid){l.append(h('p',{class:'mute'},'Sign in with Google to see your matches.'));return}
  const ms=mineM();
- if(!ms.length)l.append(h('p',{class:'mute'},'No matches yet. Open Players and challenge someone.'));
+ if(!ms.length)l.append(matchL?h('p',{class:'mute'},'No matches yet. Open Players and challenge someone.'):ld());
  ms.forEach(m=>{const me=m.from.id===uid,opp=me?m.to:m.from;
   const c=h('div',{class:'card'},h('h3',{},'You vs '+opp.name,h('span',{class:'chip'},{pending:'Pending',accepted:'Accepted',declined:'Declined',done:'Played'}[m.status]||m.status)));
   if(m.status==='pending')c.append(me?h('div',{class:'mute'},'Waiting for '+opp.name+' to reply.'):h('div',{},h('button',{class:'b',onclick:()=>setm(m,{status:'accepted'})},'Accept'),' ',h('button',{class:'b ghost',onclick:()=>setm(m,{status:'declined'})},'Decline')));
@@ -308,13 +312,14 @@ function ru(){const l=$('#ulist');l.replaceChildren();const now=Date.now(),ev=[]
  const up=ev.filter(e=>e.up).sort((a,b)=>a.t-b.t),rest=ev.filter(e=>!e.up).sort((a,b)=>b.t-a.t);
  up.forEach(e=>l.append(h('div',{class:'card'},h('h3',{},'Starting soon',h('span',{class:'chip'},'in '+cd(e.t-now))),h('p',{},e.x),h('button',{class:'b ghost',onclick:()=>show('tours')},'Take part or opt out'))));
  rest.slice(0,30).forEach(e=>l.append(h('div',{class:'card'},h('div',{},e.x),h('div',{class:'mute'},new Date(e.t).toLocaleString()))));
- if(!ev.length&&!inc.length&&!anns.length)l.append(h('p',{class:'mute'},'No updates yet. New tournaments and start times appear here.'))}
+ if(!ev.length&&!inc.length&&!anns.length)l.append((toursL&&annsL)?h('p',{class:'mute'},'No updates yet. New tournaments and start times appear here.'):ld())}
 setInterval(ru,60000);
 const cb=$('#tcreate').closest('.card');cb.hidden=true;$('#tours h2').textContent='Tournaments';
 const FB={apiKey:"AIzaSyDEegnnjOL8KOjvlwuT7yiEaME9tcxp2xU",authDomain:"dream-league-crib.firebaseapp.com",projectId:"dream-league-crib",storageBucket:"dream-league-crib.firebasestorage.app",messagingSenderId:"375298676594",appId:"1:375298676594:web:4203edc6a837382cd8efeb"};
 firebase.initializeApp(FB);const auth=firebase.auth();db=firebase.firestore();
 function authUI(){const s=$('#authtxt');
- if(uid){const u=auth.currentUser||{};s.textContent='Signed in as '+(u.displayName||u.email||'player')+(isOwn?' (organizer)':'');$('#signin').hidden=true;$('#signout').hidden=false}
+ if(!authReady||(uid&&!ownerLoaded)){s.replaceChildren(h('span',{class:'spin','aria-hidden':'true'}),'Loading...');$('#signin').hidden=true;$('#signout').hidden=true}
+ else if(uid){const u=auth.currentUser||{};s.textContent='Signed in as '+(u.displayName||u.email||'player')+(isOwn?' (organizer)':'');$('#signin').hidden=true;$('#signout').hidden=false}
  else{s.textContent='Browse freely. Sign in with Google to make a profile, join cups, challenge players, react and comment.';$('#signin').hidden=false;$('#signout').hidden=true}
  $('#claim').hidden=!(uid&&ownerLoaded&&!ownerUid)}
 function ownerUI(){isOwn=!!uid&&ownerUid===uid;const rk=uid+':'+isOwn;if(rk!==repKey){repKey=rk;subReps()}cb.hidden=!isOwn;$('#abox').hidden=!isOwn;$('#pbox').hidden=!isOwn;$('#tours h2').textContent=isOwn?'Create a tournament':'Tournaments';authUI();rt();rh();ru()}
@@ -327,14 +332,15 @@ let ip;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;$('#in
 $('#install').onclick=async()=>{if(!ip)return;ip.prompt();await ip.userChoice;ip=null;$('#install').hidden=true};
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 db.doc('config/owner').onSnapshot(x=>{ownerLoaded=true;ownerUid=x.exists?x.data().uid:null;ownerUI()},()=>{ownerLoaded=true;ownerUI()});
-db.collection('tournaments').orderBy('created','desc').limit(100).onSnapshot(x=>{tours=x.docs.map(d=>{const o={id:d.id,...d.data()};o.rounds=(o.rounds||[]).map(r=>Array.isArray(r)?r:(r.m||[]));return o});rt()},()=>toast('Could not load tournaments.'));
+db.collection('tournaments').orderBy('created','desc').limit(100).onSnapshot(x=>{tours=x.docs.map(d=>{const o={id:d.id,...d.data()};o.rounds=(o.rounds||[]).map(r=>Array.isArray(r)?r:(r.m||[]));return o});toursL=true;rt();ru()},()=>{toursL=true;toast('Could not load tournaments.');rt();ru()});
 db.collection('reactions').limit(1000).onSnapshot(x=>{rx=x.docs.map(d=>({id:d.id,...d.data()}));rh()},()=>toast('Could not load reactions.'));
-db.collection('posts').orderBy('created','desc').limit(30).onSnapshot(x=>{posts=x.docs.map(d=>({id:d.id,...d.data()}));rh()},()=>toast('Could not load posts.'));
-db.collection('announcements').orderBy('created','desc').limit(30).onSnapshot(x=>{anns=x.docs.map(d=>({id:d.id,...d.data()}));ru()},()=>toast('Could not load announcements.'));
+db.collection('posts').orderBy('created','desc').limit(30).onSnapshot(x=>{posts=x.docs.map(d=>({id:d.id,...d.data()}));postsL=true;rh()},()=>{postsL=true;toast('Could not load posts.');rh()});
+db.collection('announcements').orderBy('created','desc').limit(30).onSnapshot(x=>{anns=x.docs.map(d=>({id:d.id,...d.data()}));annsL=true;ru()},()=>{annsL=true;toast('Could not load announcements.');ru()});
 auth.onAuthStateChanged(u=>{uid=u?u.uid:null;
  if(u&&!priv){priv=true;
-  db.collection('profiles').onSnapshot(x=>{profiles=x.docs.map(d=>({id:d.id,...d.data()}));fill();rp();rt()},()=>toast('Could not load players.'));
-  db.collection('matches').orderBy('created','desc').limit(200).onSnapshot(x=>{matches=x.docs.map(d=>({id:d.id,...d.data()}));rm();ru()},()=>toast('Could not load matches.'))}
- ownerUI();rp();rm()});
+  db.collection('profiles').onSnapshot(x=>{profiles=x.docs.map(d=>({id:d.id,...d.data()}));profL=true;fill();rp();rt()},()=>{profL=true;toast('Could not load players.');rp()});
+  db.collection('matches').orderBy('created','desc').limit(200).onSnapshot(x=>{matches=x.docs.map(d=>({id:d.id,...d.data()}));matchL=true;rm();ru()},()=>{matchL=true;toast('Could not load matches.');rm()})}
+ authReady=true;ownerUI();rp();rm()});
+setTimeout(()=>{if(!authReady){authReady=true;ownerUI();rp();rm()}},6000);
 rp();rt();rm();rh();
 </script></body></html>
